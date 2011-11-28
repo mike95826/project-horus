@@ -66,6 +66,7 @@
 // Try some different messages, uncomment the
 //#define APRS_TIMESTAMPED
 #define APRS_NOTIMESTAMP
+#define APRS_TELEMETRY
 
 // --------------------------------------------------------------------------
 // AX.25 config (ax25.cpp)
@@ -86,15 +87,16 @@
 // Low-power transmissions on occasional events (such as a balloon launch)
 // might be okay at lower-than-standard APRS periods (< 10m). Check with/ask
 // permision to local digipeaters beforehand.
-#define APRS_PERIOD   28000UL
+#define APRS_PERIOD           15000UL  // send packets every 15 seconds
+
+#define APRS_TELEM_CFG_CNT    40       // send telem units every 40th packet
 
 // Set any value here (in ms) if you want to delay the first transmission
 // after resetting the device.
-#define APRS_DELAY    0UL
+#define APRS_DELAY            10000UL  // wait 10s after powerup to send pkt
 
 // GPS baud rate (in bits per second)
 #define GPS_BAUDRATE  9600.0
-
 
 // --------------------------------------------------------------------------
 // Modem config (modem.cpp)
@@ -187,12 +189,17 @@
 // Sensors config (sensors.cpp)
 // --------------------------------------------------------------------------
 
-// OneWire Bus Pin. Used for the DS18B20 Temp Sensors.
-#define PIN_ONEWIRE       A0	
+// OneWire Bus Being used for the DS18B20 Temp Sensors.
+#define ONE_WIRE_TEMP
 
-// These two sensors were fitted to the FIRST APRS board that I built
-#define INTERNAL_ID    {0x28,0x95,0x69,0xE3,0x02,0x00,0x00,0x28}
-#define EXTERNAL_ID    {0x28,0x6A,0x24,0xE3,0x02,0x00,0x00,0x7B}
+// Tell the world which pin to use
+#define PIN_ONEWIRE       A0
+
+#define INTERNAL_TEMP_ADDR      { 0x28,0x28,0xf7,0x36,0x03,0x00,0x00,0x5b }
+#define EXTERNAL_TEMP_ADDR      { 0x28,0xfd,0x18,0x37,0x03,0x00,0x00,0x4e }
+
+//Analog voltage for Battery Volts
+#define BATT_VOLTS        A2
 
 // Most of the sensors.cpp functions use internal reference voltages (either
 // AVCC or 1.1V). If you want to use an external reference, you should

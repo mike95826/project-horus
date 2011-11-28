@@ -37,19 +37,21 @@
 // Arduino/AVR libs
 #include <Wire.h>
 #include <WProgram.h>
-#include <avr/power.h>
-#include <avr/sleep.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
-// Counter for delay between position reports
-unsigned long next_tx_millis;
+#include <avr/power.h>
+#include <avr/sleep.h>
 
-// Temp sensor objects. sensor IDs set in config.h
-OneWire oneWire(PIN_ONEWIRE);
-DallasTemperature sensors(&oneWire);
-uint8_t internal[] =  INTERNAL_ID;
-uint8_t external[] = EXTERNAL_ID;
+static uint32_t next_tx_millis;    // Counter for delay between position and telemetry reports
+
+enum packets
+{
+  PACKET_POS,
+  PACKET_TELEMETRY,
+  PACKET_UNITS
+};
+
 
 // Private Functions
 void disable_bod_and_sleep()
@@ -113,32 +115,68 @@ void setup()
   sensors_setup();
   gps_setup();
 
+  #ifdef APRS_TELEMETRY
+   aprs_setup();
+  #endif
+  
   // Schedule the next transmission within APRS_DELAY ms
   next_tx_millis = millis() + APRS_DELAY;
 }
 
 void loop()
 {
-  int c;
+  uint8_t c;
+  static uint8_t packet_type = PACKET_POS;
+  static uint8_t config_count = 0;
 
   if (millis() >= next_tx_millis)
   {
     /*  Reload the timer for the next transmission, do it first so we don't
         add the processing and transmit delays to our interval period */
-    next_tx_millis = millis() + APRS_PERIOD;
+     next_tx_millis = millis() + APRS_PERIOD;
 
     // Show modem ISR stats from the previous transmission if enabled
     #ifdef DEBUG_MODEM
       modem_debug();
     #endif
 
-    // Update Temperature Readings
-    sensors.requestTemperatures();
+    /*  periodically send the APRS telemetry configuration data, set to approx
+        every 40th packet (10mins) */
+    if(config_count > APRS_TELEM_CFG_CNT)
+    {
+      packet_type = PACKET_UNITS;
+      config_count = 0;
+    }
+    else
+    {
+      config_count += 1;
+    }
 
-    // Send frame(s)
-    aprs_send();
+    /*  Now we can actually get around to sending the packet, so we will send position
+        and raw telemetry values on an alternating scheme. Every 40th packet we will
+        send the telemetry config packets.  The order in which packets are sent is via
+        very simple state machine */
+    switch(packet_type)
+    {
+      case PACKET_POS:  // Send Position Report
+             aprs_send();
+             packet_type = PACKET_TELEMETRY;
+             break;
+              
+      case PACKET_TELEMETRY:  // Send Telemetry Data
+             aprs_update_analog();
+             aprs_telemetry_data();
+             packet_type = PACKET_POS;
+             break;
+
+      case PACKET_UNITS: // Send Telemetry Information
+             aprs_telemetry_params();
+             packet_type = 0;
+             break;
+    }
   }
 
+       
   if (Serial.available())
   {
     c = Serial.read();

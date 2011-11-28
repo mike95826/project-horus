@@ -1,3 +1,4 @@
+
 /* trackuino copyright (C) 2010  EA5HAV Javi
  *
  * This program is free software; you can redistribute it and/or
@@ -20,13 +21,24 @@
  * cathedrow for this idea on using the ADC as a volt meter:
  * http://code.google.com/p/tinkerit/wiki/SecretVoltmeter
  */
-#include <OneWire.h>
-#include <DallasTemperature.h>
 #include "trackuino.h"
 #include "config.h"
 #include "sensors.h"
 #include <WProgram.h>
 
+#if defined(ONE_WIRE_TEMP)
+ #include <OneWire.h>
+ #include <DallasTemperature.h>
+
+ // Temp sensor objects. sensor IDs set in config.h
+ OneWire oneWire(PIN_ONEWIRE);
+ DallasTemperature snsr(&oneWire);
+
+ /* now we need to figure out which sensor is which */
+ uint8_t snsr_int[] = INTERNAL_TEMP_ADDR;
+ uint8_t snsr_ext[] = EXTERNAL_TEMP_ADDR;
+
+#endif
 
 /*
  * sensors_aref: measure an external voltage hooked up to the AREF pin,
@@ -63,27 +75,34 @@ unsigned long sensors_aref()
 #ifndef USE_AREF
 void sensors_setup()
 {
-	sensors.begin();
-	sensors.requestTemperatures();
+  #if defined(ONE_WIRE_TEMP)
+   /* startup dallas Temperature Sensors */
+   snsr.begin();
+   snsr.requestTemperatures();
+  #endif 
 }
 
-int sensors_int_ds18b20(){
-	int _intTemp = (int)sensors.getTempC(internal);
-    if (_intTemp!=85 && _intTemp!=127 &&
-        _intTemp!=-127 && _intTemp!=999) {
-        return _intTemp;
-    }
-    return 0;
+#if defined(ONE_WIRE_TEMP)
+
+int sensors_int_ds18b20(void)
+{
+  /* cast float to int and let compiler deal with it */
+  return (int)snsr.getTempC(snsr_int);
 }
 
-int sensors_ext_ds18b20(){;
-	int _extTemp = (int)sensors.getTempC(external);
-    if (_extTemp!=85 && _extTemp!=127 &&
-        _extTemp!=-127 && _extTemp!=999) {
-        return _extTemp;
-    }
-    return 0;
+int sensors_ext_ds18b20(void)
+{
+  /* cast float to int and let compiler deal with it */
+  return (int)snsr.getTempC(snsr_ext);
 }
+
+void sensors_request_ds18b20(void)
+{
+  /* get temperature sensors to perform a conversion */
+  snsr.requestTemperatures();
+}
+
+#endif
 
 long sensors_internal_temp()
 {

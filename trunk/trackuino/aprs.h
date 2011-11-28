@@ -18,8 +18,11 @@
 #ifndef __APRS_H__
 #define __APRS_H__
 
-#include "gps.h"
-
-void aprs_send();
+//public functions
+extern void aprs_send();
+extern void aprs_setup(void);
+extern void aprs_telemetry_data(void);
+extern void aprs_telemetry_params(void);
+extern void aprs_update_analog(void);
 
 #endif
