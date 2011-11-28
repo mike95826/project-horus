@@ -18,8 +18,5 @@
 #ifndef __TRACKUINO_H__
 #define __TRACKUINO_H__
 
-extern DallasTemperature sensors;
-extern uint8_t internal[];
-extern uint8_t external[];
 
 #endif

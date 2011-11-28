@@ -18,12 +18,13 @@
 #ifndef __SENSORS_H__
 #define __SENSORS_H__
 
-void sensors_setup();
-unsigned long sensors_aref();
-long sensors_internal_temp();
-int sensors_int_lm60();
-int sensors_ext_lm60();
-int sensors_int_ds18b20();
-int sensors_ext_ds18b20();
+extern void sensors_setup();
+extern unsigned long sensors_aref();
+extern long sensors_internal_temp();
+extern int sensors_int_lm60();
+extern int sensors_ext_lm60();
+extern int sensors_int_ds18b20();
+extern int sensors_ext_ds18b20();
+extern void sensors_request_ds18b20();
 
 #endif
