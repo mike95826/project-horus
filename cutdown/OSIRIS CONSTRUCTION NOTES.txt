@@ -35,6 +35,10 @@ D1 - UART TX
 D2 - RFM22B NIRQ
 D3 - OneWire Pin
 D4 - Exposed Via near OneWire header
+
+D7 - Valve FET Trigger - Active High
+D8 - Nichrome FET Trigger - Active High
+
 D10 - RFM22B SS
 D11 - RFM22B SDI
 D12 - RFM22B SDO
