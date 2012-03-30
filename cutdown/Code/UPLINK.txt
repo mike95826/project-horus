@@ -1,0 +1,9 @@
+UPLINK INSTRUCTIONS
+
+
+GMSK 500 baud:
+
+- Tune fldigi so centre of RTTY signal is on 1500Hz.
+- Signal transmit pattern is RTTY, then short GMSK burst, then RX for 10 seconds.
+- Transmit GMSK packet at any time during this 10 second window.
+- An alert tone will sound, confirming packet reception.
