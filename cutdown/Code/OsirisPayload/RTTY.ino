@@ -71,6 +71,6 @@ void rtty_txbit (int bit)
                
                   rf22.spiWrite(0x073, 0x00);
 		}
-        //delayMicroseconds(19500); // 50 baud
- 		delayMicroseconds(3400);	// 300 baud
+        delayMicroseconds(19500); // 50 baud
+ 		//delayMicroseconds(3400);	// 300 baud
 }
