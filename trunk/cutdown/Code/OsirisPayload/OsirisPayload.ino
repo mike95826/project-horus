@@ -27,6 +27,13 @@
 // Singleton instance of the RFM22B Library 
 RF22 rf22;
 
+// Variables & Buffers
+char txbuffer [128];
+int	rfm_temp;
+uint8_t rssi_floor = 0;
+uint8_t got_msg = 0;
+char relaymessage[40] = "No uplink received yet";
+
 void setup(){
 	// Setup out IO pins
 	pinMode(PWR_LED, OUTPUT);
@@ -48,15 +55,53 @@ void setup(){
 void loop(){
 	RFM22B_RTTY_Mode();
 	delay(100);
-	rtty_txstring("$$$$VK5QI Testing Horus Payload.\n");
+	
+	rfm_temp = (rf22.temperatureRead( RF22_TSRANGE_M64_64C,0 ) / 2) - 64;
+	//rfm_temp = rfm_temp - 64;
+	
+	sprintf(txbuffer, "    VK5QI OSIRIS Payload. %d,%d,%d,%s\n", rfm_temp,rssi_floor, got_msg,relaymessage);
+	got_msg = 0;
+	digitalWrite(STATUS_LED, LOW);
+	rtty_txstring(txbuffer);
 	delay(100);
 	RFM22B_RX_Mode();
-	delay(5000);
-	uint8_t data[] = "Hello World!";
+	delay(500);
+	digitalWrite(STATUS_LED, HIGH);
+	rssi_floor = rf22.rssiRead();
+	uint8_t data[] = "READY FOR CMD";
     rf22.send(data, sizeof(data));
-    delay(1000);
+    rf22.waitPacketSent();
+    digitalWrite(STATUS_LED, LOW);
+	uint8_t buf[RF22_MAX_MESSAGE_LEN];
+    uint8_t len = sizeof(buf);
+	if (rf22.waitAvailableTimeout(10000)){
+		got_msg = rf22.lastRssi();
+		if(rf22.recv(buf, &len)){
+			for (int lc = 0; lc < 40; lc += 1){
+              relaymessage[lc]=char(buf[lc]);  
+            }
+        }
+		digitalWrite(STATUS_LED, HIGH);
+		delay(1000);
+		//uint8_t data[] = "OK";
+		//rf22.send(data, sizeof(data));
+    	//rf22.waitPacketSent();
+    	alert_sound();
+	}
 }
 
+void alert_sound(){
+	RFM22B_RTTY_Mode();
+	delay(100);
+	rf22.spiWrite(0x073, 0x00);
+	delay(300);
+	rf22.spiWrite(0x073, 0x02);
+	delay(300);
+	rf22.spiWrite(0x073, 0x00);
+	delay(300);
+	rf22.spiWrite(0x073, 0x02);
+	delay(300);
+}
 
 // Blink both LEDs simultaneously and fast, to indicate a failure.
 void payload_fail(){
