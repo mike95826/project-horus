@@ -1,0 +1,54 @@
+OSIRIS CONSTRUCTION NOTES
+-------------------------
+
+Construction Steps:
+- Populate power connector, use keyed pin-header with tab on edge of PCB.
+- Populate C1, C2, C10, C11
+- Populate LDO Regulator if using >3.3v supply
+- Populate TPS61200 chip if using <3.3v supply.
+
+- Test regulator. Check for 3.3v where 3.3v should be.
+
+- Populate all decoupling capacitors.
+- Populate ATMega328P, Crystal, crystal capacitors, reset pullup (R1).
+- Populate ISP header and test if ISP can talk to chip.
+	- May need to use a lower ISP speed at first.
+	
+- Populate R6, R7, LEDs. Use Red LED for spot closest to ISP header.
+- Program Arduino bootloader to chip, test by blinking LEDs.
+
+- Populate RFM22B Module, SS Pullup (R15)
+- Test RFM22B with example code from RF22 library.
+	- rf22_client example will make board transmit on 434MHz.
+	
+- Populate temp sensors, dual-FET, etc as required.
+
+- ???
+
+- Profit!
+
+
+Pin Mapping
+-----------
+D0 - UART RX
+D1 - UART TX
+D2 - RFM22B NIRQ
+D3 - OneWire Pin
+D4 - Exposed Via near OneWire header
+D10 - RFM22B SS
+D11 - RFM22B SDI
+D12 - RFM22B SDO
+D13 - RFM22B SCK
+
+A0 - Exposed Via near ISP header
+A2 - Red LED
+A3 - Blue LED
+
+A4 - I2C SDA
+A5 - I2C SCL
+
+A7 - Exposed Via near ISP header
+
+
+
+
