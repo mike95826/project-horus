@@ -28,3 +28,13 @@ C
 D
 E - Switch to main mode (RTTY, then listen for commands)
 F - Switch to Morse beacon mode. Will continue to listen to commands between morse beacons.
+
+
+Uplink format:
+
+Uplink string can be up to 40 characters long. Anything longer than this will be cut off in the downlink RTTY packet.
+
+$ - First character of all uplink commands must be a '$' character
+X - This character is the command number (0 through F)
+<space> - Space separator
+<Text> - Up to 37 characters of text to be shown in the downlink RTTY packet.
