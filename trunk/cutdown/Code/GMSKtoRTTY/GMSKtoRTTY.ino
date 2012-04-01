@@ -24,16 +24,16 @@
 
 #define TX_FREQ	431.650
 #define	RX_FREQ	431.650
-#define TX_POWER	RF22_TXPOW_1DBM  // Options are 1,2,5,8,11,14,17,20 dBm
-#define LISTEN_TIME	5000
+#define TX_POWER	RF22_TXPOW_14DBM  // Options are 1,2,5,8,11,14,17,20 dBm
+#define LISTEN_TIME	10000
+
 #define RTTY_DELAY	19500 // 50 baud
-//#define RTTY_DELAY	3400 // 300 baud
 
 // Singleton instance of the RFM22B Library 
 RF22 rf22;
 
 // Variables & Buffers
-char txbuffer [128];
+char txbuffer [200];
 int	rfm_temp;
 int rssi_floor = 0;
 int last_rssi = 0;
@@ -65,13 +65,8 @@ void loop(){
 	count++;
 	RFM22B_RTTY_Mode();
 	delay(100);
-	
-	rfm_temp = (rf22.temperatureRead( RF22_TSRANGE_M64_64C,0 ) / 2) - 64;
-	batt_mv = analogRead(BATT) * 12;
-	
-	sprintf(txbuffer, "$$OSIRIS,VK5QI,%d,%d,%d,%d,%d,%s", count,rfm_temp,batt_mv,rssi_floor,last_rssi,relaymessage);
-	sprintf(txbuffer, "%s*%04X\n", txbuffer, gps_CRC16_checksum(txbuffer));
 	digitalWrite(STATUS_LED, LOW);
+	sprintf(txbuffer, "  VK5QI GMSK REPEATER %d\n", rssi_floor);
 	rtty_txstring(txbuffer);
 	delay(100);
 	
@@ -89,18 +84,28 @@ void loop(){
     
     uint8_t buf[RF22_MAX_MESSAGE_LEN];
 	uint8_t len = sizeof(buf);
-    
+   // rf22.clearRxBuf();
 	if (rf22.waitAvailableTimeout(LISTEN_TIME)){
 		last_rssi = ((int)rf22.lastRssi()*51 - 12400)/100;
 		if(rf22.recv(buf, &len)){
-			for (int lc = 0; lc < 40; lc += 1){
+			int copylen = 40;
+			if(len<40){ copylen = len;}
+			for (int lc = 0; lc < copylen; lc += 1){
               relaymessage[lc]=char(buf[lc]);  
             }
+            relaymessage[copylen-1] = 0;
         }
 		digitalWrite(STATUS_LED, HIGH);
 		delay(1000);
     	alert_sound(3);
+    	sprintf(txbuffer, "   RSSI %ddBm: %s\n", last_rssi, relaymessage);
+    	RFM22B_RTTY_Mode();
+    	delay(100);
+    	rtty_txstring(txbuffer);
+    	delay(1000);
 	}
+	
+	rssi_floor = ((int)rf22.rssiRead()*51 - 12400)/100; // Linear approximation to the graph in the datasheet.
 }
 
 void alert_sound(int loops){
