@@ -2,7 +2,6 @@
 	Osiris Payload Code
 	
 	Authors:	Mark Jessop (mjessop<at>eleceng.adelaide<dot>edu.au)
-				Joel Stanley
 				
 	Date: 2011-03-30
 	
