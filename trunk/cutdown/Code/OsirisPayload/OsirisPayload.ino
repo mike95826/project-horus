@@ -93,13 +93,45 @@ void loop(){
 	if (rf22.waitAvailableTimeout(LISTEN_TIME)){
 		last_rssi = ((int)rf22.lastRssi()*51 - 12400)/100;
 		if(rf22.recv(buf, &len)){
-			for (int lc = 0; lc < 40; lc += 1){
-              relaymessage[lc]=char(buf[lc]);  
+			// Immediately send an alert tone to confirm packet reception
+			delay(500);
+			alert_sound(3);
+			digitalWrite(STATUS_LED, HIGH);
+			// Command decoding
+			if(buf[0] == '$'){
+				switch(buf[1]){
+					case '0':  // Do nothing, just pass the string on as usual
+						break;
+					case '1':
+						fire_wire_fet(1);
+						break;
+					case '2':
+						fire_wire_fet(2);
+						break;
+					case '3':
+						fire_wire_fet(4);
+						break;
+					case '4':
+						fire_wire_fet(6);
+						break;
+					case '5':
+						fire_wire_fet(10);
+						break;
+					default:
+						break;
+				}
+		
+				// We don't want the command numbers transmitter down, just send the text back
+				for (int lc = 3; lc < 40; lc += 1){
+              		relaymessage[lc-3]=char(buf[lc]);  
+            	}
+            }else{
+            	// We don't know what this command is, just send the entire thing back.
+            	for (int lc = 0; lc < 40; lc += 1){
+              		relaymessage[lc]=char(buf[lc]);  
+            	}
             }
         }
-		digitalWrite(STATUS_LED, HIGH);
-		delay(1000);
-    	alert_sound(3);
 	}
 }
 
@@ -142,4 +174,14 @@ uint16_t gps_CRC16_checksum (char *string)
 	}
  
 	return crc;
+}
+
+void fire_wire_fet(int seconds){
+	RFM22B_RTTY_Mode();
+	digitalWrite(WIRE_FET, HIGH);
+	delay(seconds*1000);
+	batt_mv = analogRead(BATT) * 12;
+	digitalWrite(WIRE_FET, LOW);
+	sprintf(txbuffer, "Done. Batt dropped to %d\n", batt_mv);
+	rtty_txstring(txbuffer);
 }
