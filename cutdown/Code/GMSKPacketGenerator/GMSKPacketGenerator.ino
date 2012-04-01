@@ -2,7 +2,6 @@
 	Osiris Payload Code
 	
 	Authors:	Mark Jessop (mjessop<at>eleceng.adelaide<dot>edu.au)
-				Joel Stanley
 				
 	Date: 2011-03-30
 	
@@ -62,22 +61,22 @@ void loop(){
 	rf22.send(data, sizeof(data));
 	rf22.waitPacketSent();
 	delay(1000);
-*/	
+	
 	uint8_t data2[] = "$0 VK5ALX";
 	rf22.send(data2, sizeof(data2));
 	rf22.waitPacketSent();
 	delay(1000);
-/*
+
 	uint8_t data3[] = "$0 VK5ALX";
 	rf22.send(data3, sizeof(data3));
 	rf22.waitPacketSent();
 	delay(1000);
-	
-	uint8_t data4[] = "$1 VK5QI 1s";
+*/	
+	uint8_t data4[] = "$4 VK5QI 6s";
 	rf22.send(data4, sizeof(data4));
 	rf22.waitPacketSent();
 	delay(1000);
-	
+/*	
 	uint8_t data5[] = "$3 VK5QI 3s";
 	rf22.send(data5, sizeof(data5));
 	rf22.waitPacketSent();

@@ -2,7 +2,6 @@
 	Osiris Payload Code
 	
 	Authors:	Mark Jessop (mjessop<at>eleceng.adelaide<dot>edu.au)
-				Joel Stanley
 				
 	Date: 2011-03-30
 	
@@ -24,10 +23,10 @@
 
 #define TX_FREQ	431.650
 #define	RX_FREQ	431.650
-#define TX_POWER	RF22_TXPOW_20DBM  // Options are 1,2,5,8,11,14,17,20 dBm
+#define TX_POWER	RF22_TXPOW_14DBM  // Options are 1,2,5,8,11,14,17,20 dBm
 #define LISTEN_TIME	5000
-#define RTTY_DELAY	19500 // 50 baud
-//#define RTTY_DELAY	3400 // 300 baud
+//#define RTTY_DELAY	19500 // 50 baud
+#define RTTY_DELAY	3400 // 300 baud
 
 // Singleton instance of the RFM22B Library 
 RF22 rf22;
