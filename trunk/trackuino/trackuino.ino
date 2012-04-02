@@ -17,8 +17,8 @@
 
 // Refuse to compile on arduino version 21 or lower. 22 includes an 
 // optimization of the USART code that is critical for real-time operation.
-#if ARDUINO < 22
-#error "Oops! We need Arduino 22 or later"
+#if ARDUINO < 100
+#error "Oops! We need Arduino 1.0 or later"
 #endif
 
 // Trackuino custom libs
@@ -36,7 +36,7 @@
 
 // Arduino/AVR libs
 #include <Wire.h>
-#include <WProgram.h>
+#include <Arduino.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 
@@ -128,6 +128,7 @@ void loop()
   uint8_t c;
   static uint8_t packet_type = PACKET_POS;
   static uint8_t config_count = 0;
+  static uint8_t init_count = 0;
 
   if (millis() >= next_tx_millis)
   {
@@ -164,14 +165,24 @@ void loop()
              break;
               
       case PACKET_TELEMETRY:  // Send Telemetry Data
-             aprs_update_analog();
              aprs_telemetry_data();
-             packet_type = PACKET_POS;
+
+             /*  start by sending UNIT packets until APRS_TELEM_INIT_CNT exceeded, then
+                 go back to sending POS packets and unit packets every 40th */
+             if(init_count++ < APRS_TELEM_INIT_CNT)
+             {
+                packet_type = PACKET_UNITS;
+                config_count = 0;
+             }
+             else
+             {
+               packet_type = PACKET_POS;
+             }
              break;
 
       case PACKET_UNITS: // Send Telemetry Information
              aprs_telemetry_params();
-             packet_type = 0;
+             packet_type = PACKET_POS;
              break;
     }
   }

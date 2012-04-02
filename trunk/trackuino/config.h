@@ -87,9 +87,10 @@
 // Low-power transmissions on occasional events (such as a balloon launch)
 // might be okay at lower-than-standard APRS periods (< 10m). Check with/ask
 // permision to local digipeaters beforehand.
-#define APRS_PERIOD           15000UL  // send packets every 15 seconds
+#define APRS_PERIOD           15500UL  // send packets every 15.5 seconds
 
-#define APRS_TELEM_CFG_CNT    40       // send telem units every 40th packet
+#define APRS_TELEM_CFG_CNT     39     // send telem units every 39th packet
+#define APRS_TELEM_INIT_CNT    5      // for first 5 cycles send param unit info
 
 // Set any value here (in ms) if you want to delay the first transmission
 // after resetting the device.

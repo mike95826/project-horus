@@ -19,10 +19,9 @@
 #define __APRS_H__
 
 //public functions
-extern void aprs_send();
-extern void aprs_setup(void);
-extern void aprs_telemetry_data(void);
-extern void aprs_telemetry_params(void);
-extern void aprs_update_analog(void);
+void aprs_send();
+void aprs_setup(void);
+void aprs_telemetry_data(void);
+void aprs_telemetry_params(void);
 
 #endif

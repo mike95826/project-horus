@@ -18,7 +18,7 @@
 #include "config.h"
 #include "radio_mx146.h"
 #include <Wire.h>
-#include <WProgram.h>
+#include <Arduino.h>
 
 const int MAX_RES = 16;
 char res[MAX_RES];
@@ -28,7 +28,7 @@ void RadioMx146::send_cmd(const char *cmd, int cmd_len, char *res, int res_len)
   int i;
   Wire.beginTransmission(0x48);
   for (i = 0; i < cmd_len; i++) {
-    Wire.send(cmd[i]);
+    Wire.write(cmd[i]);
   }
   Wire.endTransmission();
   delay(100);
@@ -37,7 +37,7 @@ void RadioMx146::send_cmd(const char *cmd, int cmd_len, char *res, int res_len)
     Wire.requestFrom(0x48, res_len);
     for (i = 0; i < res_len; i++) {
       while (Wire.available() == 0) ;
-      res[i] = Wire.receive();
+      res[i] = Wire.read();
     }
   }
 }

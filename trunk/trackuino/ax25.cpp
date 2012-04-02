@@ -18,7 +18,7 @@
 #include "ax25.h"
 #include "config.h"
 #include "modem.h"
-#include <WProgram.h>
+#include <Arduino.h>
 
 // Module globals
 unsigned short int crc;

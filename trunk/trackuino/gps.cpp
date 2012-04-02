@@ -16,7 +16,7 @@
  */
 
 #include "config.h"
-#include <WProgram.h>
+#include <Arduino.h>
 #include <stdlib.h>
 #include <string.h>
 #include "gps.h"
@@ -32,6 +32,7 @@ static void parse_lon_hemi(const char *token);
 static void parse_speed(const char *token);
 static void parse_course(const char *token);
 static void parse_altitude(const char *token);
+static void parse_satellites(const char *token);
 
 // Module types
 typedef void (*t_nmea_parser)(const char *token);
@@ -41,7 +42,6 @@ enum t_sentence_type {
   SENTENCE_GGA,
   SENTENCE_RMC
 };
-
 
 // Module constants
 static const t_nmea_parser unk_parsers[] = {
@@ -56,7 +56,7 @@ static const t_nmea_parser gga_parsers[] = {
   NULL,             // Longitude
   NULL,             // E/W
   NULL,             // Fix quality 
-  NULL,             // Number of satellites
+  parse_satellites, // Number of satellites
   NULL,             // Horizontal dilution of position
   parse_altitude,   // Altitude
   NULL,             // "M" (mean sea level)
@@ -93,7 +93,7 @@ static unsigned char their_checksum = 0;
 static char token[16];
 static int num_tokens = 0;
 static unsigned int offset = 0;
-static bool active = false;
+static bool fix_ok = false;
 static char gga_time[7], rmc_time[7];
 static char new_time[7];
 static float new_lat;
@@ -103,6 +103,7 @@ static char new_aprs_lon[10];
 static float new_course;
 static float new_speed;
 static float new_altitude;
+static char new_satellites = 0;
 
 // Public (extern) variables, readable from other modules
 char gps_time[7];       // HHMMSS
@@ -113,6 +114,8 @@ char gps_aprs_lon[10];
 float gps_course = 0;
 float gps_speed = 0;
 float gps_altitude = 0;
+char gps_fix = false;
+char gps_satellites = 0;
 
 // Module functions
 unsigned char from_hex(char a) 
@@ -148,9 +151,9 @@ void parse_status(const char *token)
 {
   // "A" = active, "V" = void. We shoud disregard void sentences
   if (strcmp(token, "A") == 0)
-    active = true;
+    fix_ok = true;
   else
-    active = false;
+    fix_ok = false;
 }
 
 void parse_lat(const char *token)
@@ -213,6 +216,21 @@ void parse_altitude(const char *token)
   new_altitude = atof(token);
 }
 
+void parse_satellites(const char *token)
+{
+  /* convert our token to an integer */
+  int temp = atoi(token);
+
+  /* range check it's between 0-32 satellites */  
+  if(temp < 0)
+    temp = 0;
+    
+  if(temp > 32)
+    temp = 32;
+
+  /* store value away */
+  new_satellites = (char)temp;
+}
 
 //
 // Exported functions
@@ -275,7 +293,7 @@ bool gps_decode(char c)
 
         if (sentence_type != SENTENCE_UNK &&      // Known sentence?
             strcmp(gga_time, rmc_time) == 0 &&    // RMC/GGA times match?
-            active) {                             // Valid fix?
+            fix_ok) {                             // Valid fix?
           // Atomically merge data from the two sentences
           strcpy(gps_time, new_time);
           gps_lat = new_lat;
@@ -285,8 +303,12 @@ bool gps_decode(char c)
           gps_course = new_course;
           gps_speed = new_speed;
           gps_altitude = new_altitude;
+          gps_satellites = new_satellites;
           ret = true;
         }
+
+        /* update the GPS fix flag */
+        gps_fix = (fix_ok) ? 1 : 0;
       }
 #ifdef DEBUG_GPS
       if (num_tokens)
@@ -360,8 +382,10 @@ bool gps_decode(char c)
 // Send a byte array of UBX protocol to the GPS
 void sendUBX(unsigned char *MSG, uint8_t len)
 {
-  for(int i=0; i<len; i++)
-    Serial.print(MSG[i], BYTE);
+	for(int i=0; i<len; i++)
+		Serial.write(MSG[i]);
+//    Serial.print(MSG[i], BYTE);
+
 }
  
 // Calculate expected UBX ACK packet and parse UBX response from GPS

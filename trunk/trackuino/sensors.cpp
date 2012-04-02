@@ -1,4 +1,3 @@
-
 /* trackuino copyright (C) 2010  EA5HAV Javi
  *
  * This program is free software; you can redistribute it and/or
@@ -24,7 +23,7 @@
 #include "trackuino.h"
 #include "config.h"
 #include "sensors.h"
-#include <WProgram.h>
+#include <Arduino.h>
 
 #if defined(ONE_WIRE_TEMP)
  #include <OneWire.h>
