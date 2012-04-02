@@ -29,7 +29,7 @@
 #include "modem.h"
 
 #include <Wire.h>
-#include <WProgram.h>
+#include <Arduino.h>
 
 const struct s_address addresses[] =
 { 
@@ -130,6 +130,17 @@ void aprs_send()
     will be updated when we call the aprs_update_analog() function, just
     prior to transmission */
 static uint8_t analog[5] = { 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+/* define the digital bits */
+enum digital_bits
+{
+  Accent = 0,
+  Decent = 1,
+  Chute = 6,
+  GPSFix = 7
+};
+
+/* allocate some storage for the bits above */
 static uint8_t digital = 0x00;
 
 /*  We will define the APRS Telemetry parameters as strings, since they are sent
@@ -137,9 +148,9 @@ static uint8_t digital = 0x00;
     isn't going to be fixed. We can then define an array of pointers to these
     strings which we can then clock out using a single function */
 #define TELEM_DATA_PACKETS              4
-static uint8_t telem_param[] PROGMEM = ":VK5ZM-11 :PARAM.Battery,ITemp,Etemp,,,Chut,,,,,,,\0";
-static uint8_t telem_units[] PROGMEM = ":VK5ZM-11 :UNIT.V,degC,degC,,,Open,,,,,,,\0";
-static uint8_t telem_coeff[] PROGMEM = ":VK5ZM-11 :EQNS.0,0.0129,0,0,1,-128,0,1,-128,0,0,0,0,0,0\0";
+static uint8_t telem_param[] PROGMEM = ":VK5ZM-11 :PARM.Battery,IntT,ExtT,NumSat,,GPSFix,Chut,,,,,,\0";
+static uint8_t telem_units[] PROGMEM = ":VK5ZM-11 :UNIT.mV,degC,degC,sats,,LOCK,OPEN,,,,,,\0";
+static uint8_t telem_coeff[] PROGMEM = ":VK5ZM-11 :EQNS.0,6.445,1350,0,1,-128,0,1,-128,0,1,0,0,0,0\0";
 static uint8_t telem_bits[]  PROGMEM = ":VK5ZM-11 :BITS.11111111,Project Horus HAB\0";
 static uint8_t *telem_data[TELEM_DATA_PACKETS] PROGMEM = { &telem_param[0],  \
                                                            &telem_units[0],  \
@@ -150,7 +161,7 @@ static uint8_t *telem_data[TELEM_DATA_PACKETS] PROGMEM = { &telem_param[0],  \
     convert it to a string, append a comma and load this into the modem buffer.
     This function is called five times to load all of the analog telemetry values
     into our packet */
-static inline void aprs_send_analog(uint8_t var)
+static inline void send_analog(uint8_t var)
 {
   char temp[6];
 
@@ -166,7 +177,7 @@ static inline void aprs_send_analog(uint8_t var)
 /*  The function aprs_send_ditial() will encode the bits stored in the digital 
     variable as a string of 1's and 0's that is then loaded into the modem buffer.
     This function is called once. */
-static inline void aprs_send_digital(uint8_t val)
+static inline void send_digital(uint8_t val)
 {
   char temp[8];
   char *p;
@@ -190,6 +201,84 @@ static inline void aprs_send_digital(uint8_t val)
   return; 
 }
 
+static uint8_t get_temp(int16_t val)
+{
+  if(val < -128)
+    return 0;
+  else if(val > 127)
+    return 255;
+  else
+    return (uint8_t)(val += 128);
+}
+
+/*  The function aprs_update_telemetry() is called by the mainloop() prior to
+    calling aprs_send_data().  This function fetches the analog and digital
+    telemetry values from various places within the code and formats it
+    approriately for transmission */
+static void telemetry_update(void)
+{
+
+  /* Fetch the battery volts from the ADC, note 10-bit value */
+  int battv = analogRead(BATT_VOLTS);
+
+  /*  Now we are going to use some magic numbers to scale the ADC value into
+      our APRS 8-bit value.  The maximum battery voltage is 3.0V so we want this
+      to represent APRS value 255, this is 931 counts from our 10-bit ADC.  
+      We'd like to be able to see down to 1.5V, looking at the ADC resolutionthis
+      is 400 or so counts lower, not a nice number so make this divisable by two
+      lets select 512.  So ADC counts 931-512= 419 which is a battery voltage of 
+      approx 1.35V.  So we can write this equation down
+      
+      APRS Val = (ADC Raw (10-bit) - 419) / 2;
+      
+      Where APRS Val 255 = 3.00V = ADC 932
+            APRS Val   0 = 1.35V = ADC 420
+      
+      So now we can load the PARM, EQUN and UNIT strings with an equation to recover
+      volts from this mess.  In our case we'll go for millivolts to make sure rounding
+      errors at aprs.fi don't cause us issues
+
+      We use V = a*v^2 + b*v + c where: a = 0, b = 6.445, c = 1350 where V is in
+      millivolts.  You can use excel to verify the above. */
+
+  if(battv > 421)      //I'll let the reader work this one out (!)
+  {
+    battv -= 420;
+    battv /= 2;
+  }
+  else
+  {
+    battv = 0;
+  }
+  
+  analog[0] = (uint8_t)battv;
+
+  /* fetch the temperatures from our Dallas one-wire sensors */
+  sensors_request_ds18b20();
+
+  /*  work out the internal temperature in APRS units
+      T = a*v^2 + b*v + c where: a = 0, b = 1, c = -128 */
+  analog[1] = get_temp( sensors_int_ds18b20() );
+
+  /*  work out the external temperature in APRS units
+      T = a*v^2 + b*v + c where: a = 0, b = 1, c = -128 */
+  analog[2] = get_temp( sensors_ext_ds18b20());
+
+  /*  stuff in how many gps satellites we can see, value
+      between 0-32. */
+  analog[3] = gps_satellites;
+
+  /* the following analog value has not yet been implemented */
+  analog[4] = 0;       //BLANK
+
+  /* now we'll deal with the digital bits */
+  if(gps_fix)
+    digital |= (1<< GPSFix);
+  else
+    digital &= ~(1<<GPSFix);
+
+}
+
 /*  The function aprs_telemetry_data() builds the entire Telemetry packet in the
     modem buffer.  It has to include the packet header, analog telemetry values,
     digital telemetry values and footer. This function is called by the mainloop()
@@ -204,6 +293,9 @@ void aprs_telemetry_data(void)
       before it rolls over */
   static uint8_t sequence = 0;
 
+  /* update all of the analog values we're about to send */
+  telemetry_update();
+
   /* load the AX25 header into the modem buffer */
   ax25_send_header(addresses, sizeof(addresses)/sizeof(s_address));
 
@@ -216,9 +308,9 @@ void aprs_telemetry_data(void)
   ax25_send_byte(',');
 
   for(i=0; i < 5; i++)         // send out the analog values
-    aprs_send_analog(i);
+    send_analog(i);
 
-  aprs_send_digital(digital);  // tack on the digital bits
+  send_digital(digital);      // tack on the digital bits
     
   ax25_send_footer();
   ax25_flush_frame();          // Tell the modem to go
@@ -272,43 +364,10 @@ void aprs_telemetry_params(void)
     ax25_flush_frame();
     /* wait for the modem to send the data before loading next packet */
     while(modem_busy()) {};
-
+    
+    /* we need some form of interpacket delay here */
+    //delay_ms(100);
   }
-}
-
-static uint8_t get_temp(int16_t val)
-{
-  if(val < -128)
-    return 0;
-  else if(val > 127)
-    return 255;
-  else
-    return (uint8_t)(val += 128);
-}
-
-/*  The function aprs_update_analog() is called by the mainloop() prior to
-    calling aprs_send_data().  This function fetches the analog and digital
-    telemetry values from various places within the code and formats it
-    approriately for transmission */
-void aprs_update_analog(void)
-{
-  /*  work out the battery volts in APRS units
-      V = a*v^2 + b*v + c where: a = 0, b = 0.0129, c = 0*/
-  analog[0] = (analogRead(BATT_VOLTS) >> 2);    //convert to 8-bits
-
-  /* fetch the temperatures from our Dallas one-wire sensors */
-  sensors_request_ds18b20();
-
-  analog[1] = get_temp( sensors_int_ds18b20() );    //already range checked !
-
-  /*  work out the external temperature in APRS units
-      T = a*v^2 + b*v + c where: a = 0, b = 1, c = -128 */
-  analog[2] = get_temp( sensors_ext_ds18b20());  // has already been range checked !
-
-  /* the following analog values have not yet been implemented */
-  analog[3] = 0;       //BLANK
-  analog[4] = 0;       //BLANK
-  digital = 0x00;      //Not yet implemented
 }
 
 void aprs_setup(void)

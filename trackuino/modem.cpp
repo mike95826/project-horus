@@ -32,7 +32,7 @@
 #include "modem.h"
 #include "radio_mx146.h"
 #include "radio_hx1.h"
-#include <WProgram.h>
+#include <Arduino.h>
 #include <stdint.h>
 #include <avr/interrupt.h>
 #include <avr/io.h>

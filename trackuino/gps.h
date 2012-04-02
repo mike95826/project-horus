@@ -27,6 +27,8 @@ extern char gps_aprs_lon[10];   //DDDMM.MMH0
 extern float gps_course;
 extern float gps_speed;
 extern float gps_altitude;
+extern char gps_fix;
+extern char gps_satellites;
 
 void gps_setup();
 bool gps_decode(char c);
