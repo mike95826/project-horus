@@ -13,6 +13,7 @@
 #include <RF22.h>
 #include <SPI.h>
 #include <util/crc16.h>
+#include <avr/wdt.h>
 
 #define PWR_LED	A2
 #define	STATUS_LED	A3
@@ -43,6 +44,8 @@ unsigned int rx_count = 0;
 
 void setup(){
 	// Setup out IO pins
+	wdt_reset();
+	wdt_enable(WDTO_8S);
 	pinMode(PWR_LED, OUTPUT);
 	pinMode(STATUS_LED, OUTPUT);
 	pinMode(WIRE_FET, OUTPUT);
@@ -57,10 +60,13 @@ void setup(){
 	if(!rf22.init()) payload_fail();
 	rf22.setTxPower(TX_POWER);
   	RFM22B_RTTY_Mode();
+  	
+  	wdt_enable(WDTO_8S);
   
 }
 
 void loop(){
+	wdt_reset();
 	count++;
 	RFM22B_RTTY_Mode();
 	delay(100);
@@ -71,6 +77,7 @@ void loop(){
 	sprintf(txbuffer, "$$OSIRIS,VK5QI,%d,%d,%d,%d,%d,%s", count,rfm_temp,batt_mv,rssi_floor,last_rssi,relaymessage);
 	sprintf(txbuffer, "%s*%04X\n", txbuffer, gps_CRC16_checksum(txbuffer));
 	digitalWrite(STATUS_LED, LOW);
+	wdt_reset();
 	rtty_txstring(txbuffer);
 	delay(100);
 	
@@ -88,16 +95,19 @@ void loop(){
     
     uint8_t buf[RF22_MAX_MESSAGE_LEN];
 	uint8_t len = sizeof(buf);
-    
+    wdt_reset();
 	if (rf22.waitAvailableTimeout(LISTEN_TIME)){
+		wdt_reset();
 		last_rssi = ((int)rf22.lastRssi()*51 - 12400)/100;
 		if(rf22.recv(buf, &len)){
 			// Immediately send an alert tone to confirm packet reception
 			delay(100);
 			// Send an ACK packet, for the benefit of RFM22B ground stations
-			uint8_t data_ack = "ACK";
-			rf22.send(data_ack, sideof(data_ack));
+			uint8_t data_ack[] = "ACK";
+			rf22.send(data_ack, sizeof(data_ack));
+			rf22.waitPacketSent();
 			delay(500);
+			wdt_reset();
 			alert_sound(3);
 			digitalWrite(STATUS_LED, HIGH);
 			// Command decoding
@@ -146,6 +156,7 @@ void alert_sound(int loops){
 		delay(250);
 		rf22.spiWrite(0x073, 0x02);
 		delay(250);
+		wdt_reset();
 	}
 }
 
@@ -158,6 +169,7 @@ void payload_fail(){
 		digitalWrite(PWR_LED, LOW);
 		digitalWrite(STATUS_LED, HIGH);
 		delay(300);
+		wdt_reset();
 	}
 }
 
@@ -182,7 +194,9 @@ uint16_t gps_CRC16_checksum (char *string)
 void fire_wire_fet(int seconds){
 	RFM22B_RTTY_Mode();
 	digitalWrite(WIRE_FET, HIGH);
+	wdt_reset();
 	delay(seconds*1000);
+	wdt_reset();
 	batt_mv = analogRead(BATT) * 12;
 	digitalWrite(WIRE_FET, LOW);
 	sprintf(txbuffer, "Done. Batt dropped to %d\n", batt_mv);

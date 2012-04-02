@@ -24,6 +24,7 @@ void rtty_txstring (char * string)
 	c = *string++;
 	while ( c != '\0')
 	{
+		wdt_reset();
 		rtty_txbyte (c);
 		c = *string++;
 	}
