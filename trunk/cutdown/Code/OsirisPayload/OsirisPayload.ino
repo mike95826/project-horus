@@ -93,6 +93,10 @@ void loop(){
 		last_rssi = ((int)rf22.lastRssi()*51 - 12400)/100;
 		if(rf22.recv(buf, &len)){
 			// Immediately send an alert tone to confirm packet reception
+			delay(100);
+			// Send an ACK packet, for the benefit of RFM22B ground stations
+			uint8_t data_ack = "ACK";
+			rf22.send(data_ack, sideof(data_ack));
 			delay(500);
 			alert_sound(3);
 			digitalWrite(STATUS_LED, HIGH);
