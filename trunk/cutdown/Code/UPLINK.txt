@@ -17,7 +17,7 @@ UPLINK Commands:
 2 - Activate WIRE FET for 2 seconds
 3 - Activate WIRE FET for 4 seconds
 4 - Activate WIRE FET for 6 seconds
-5
+5 - Activate WIRE FET for 10 seconds
 6
 7
 8

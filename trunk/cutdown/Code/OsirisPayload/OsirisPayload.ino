@@ -29,6 +29,10 @@
 //#define RTTY_DELAY	19500 // 50 baud
 #define RTTY_DELAY	3400 // 300 baud
 
+#define RTTY_MODE 0
+#define MORSE_MODE 1
+uint8_t TX_MODE = RTTY_MODE;
+
 // Singleton instance of the RFM22B Library 
 RF22 rf22;
 
@@ -62,24 +66,30 @@ void setup(){
   	RFM22B_RTTY_Mode();
   	
   	wdt_enable(WDTO_8S);
-  
+  	
+	morse_vk5qi();
 }
 
 void loop(){
 	wdt_reset();
 	count++;
-	RFM22B_RTTY_Mode();
-	delay(100);
 	
-	rfm_temp = (rf22.temperatureRead( RF22_TSRANGE_M64_64C,0 ) / 2) - 64;
-	batt_mv = analogRead(BATT) * 12;
-	
-	sprintf(txbuffer, "$$OSIRIS,VK5QI,%d,%d,%d,%d,%d,%s", count,rfm_temp,batt_mv,rssi_floor,last_rssi,relaymessage);
-	sprintf(txbuffer, "%s*%04X\n", txbuffer, gps_CRC16_checksum(txbuffer));
-	digitalWrite(STATUS_LED, LOW);
-	wdt_reset();
-	rtty_txstring(txbuffer);
-	delay(100);
+	if(TX_MODE == RTTY_MODE){
+		RFM22B_RTTY_Mode();
+		delay(100);
+		
+		rfm_temp = (rf22.temperatureRead( RF22_TSRANGE_M64_64C,0 ) / 2) - 64;
+		batt_mv = analogRead(BATT) * 12;
+		
+		sprintf(txbuffer, "$$OSIRIS,VK5QI,%d,%d,%d,%d,%d,%s", count,rfm_temp,batt_mv,rssi_floor,last_rssi,relaymessage);
+		sprintf(txbuffer, "%s*%04X\n", txbuffer, gps_CRC16_checksum(txbuffer));
+		digitalWrite(STATUS_LED, LOW);
+		wdt_reset();
+		rtty_txstring(txbuffer);
+		delay(100);
+	}else if(TX_MODE == MORSE_MODE){
+		morse_vk5qi();
+	}
 	
 	RFM22B_RX_Mode();
 	delay(400);
@@ -129,6 +139,12 @@ void loop(){
 						break;
 					case '5':
 						fire_wire_fet(10);
+						break;
+					case 'E':
+						TX_MODE = RTTY_MODE;
+						break;
+					case 'F':
+						TX_MODE = MORSE_MODE;
 						break;
 					default:
 						break;
@@ -201,4 +217,42 @@ void fire_wire_fet(int seconds){
 	digitalWrite(WIRE_FET, LOW);
 	sprintf(txbuffer, "Done. Batt dropped to %d\n", batt_mv);
 	rtty_txstring(txbuffer);
+}
+
+// Morse Code Stuffs.
+
+int morse_speed = 20;
+
+// Hardcoding this in saves RAM. 
+void morse_vk5qi(){
+	rf22.setFrequency(TX_FREQ);
+	rf22.setModeRx();
+	rf22.setModemConfig(RF22::UnmodulatedCarrier);
+	rf22.spiWrite(0x073, 0x03); // Make sure we're on the high tone when we start
+
+	dit();dit();dit();dah(); morse_delay(3); // V
+	dah();dit();dah(); morse_delay(3); //K
+	dit();dit();dit();dit();dit(); morse_delay(3); //5
+	dah();dah();dit();dah(); morse_delay(3); //Q
+	dit();dit(); morse_delay(3);
+}
+
+void morse_delay(int num){
+	for(int i = 0; i<num; i++){
+		delay(1200/morse_speed);
+	}
+}
+	
+void dit(){
+	rf22.setModeTx();
+	morse_delay(1);
+	rf22.setModeRx();
+	morse_delay(1);
+}
+
+void dah(){
+	rf22.setModeTx();
+	morse_delay(3);
+	rf22.setModeRx();
+	morse_delay(1);
 }
