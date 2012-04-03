@@ -13,7 +13,7 @@
 #define TX_FREQ	431.650
 #define	RX_FREQ	431.650
 #define TX_POWER	RF22_TXPOW_1DBM  // Options are 1,2,5,8,11,14,17,20 dBm
-#define LISTEN_TIME	500
+#define LISTEN_TIME	200
 #define RTTY_DELAY	19500 // 50 baud
 //#define RTTY_DELAY	3400 // 300 baud
 
@@ -31,6 +31,7 @@ char relaymessage[40] = "Nothing set";
 int batt_mv = 0;
 unsigned int count = 0;
 unsigned int rx_count = 0;
+int current_power = 1;
 
 void setup(){
 	// Setup out IO pins
@@ -43,7 +44,7 @@ void setup(){
 	digitalWrite(STATUS_LED, LOW);
 	digitalWrite(WIRE_FET, LOW);
 	digitalWrite(VALVE_FET, LOW);
-	Serial.begin(9600);
+	Serial.begin(115200);
 	Serial.println("Booting...");
 	
 	// Attempt to start the radio. If fail, blink.
@@ -51,13 +52,16 @@ void setup(){
 	rf22.setTxPower(TX_POWER);
 	RFM22B_RTTY_Mode();
 	Serial.println("Transmitter is up.");
+	settings();
 }
 
 void loop(){
 	while(Serial.available()>0){ Serial.read();} // Flush the input buffer
 	Serial.println("");
 	Serial.println("CHOOSE WISELY:");
+	Serial.println("(v)iew current settings.");
 	Serial.println("Change (f)requency.");
+	Serial.println("Change TX (p)ower.");
 	Serial.println("Set (m)essage.");
 	Serial.println("(s)end message with RTTY preamble.");
 	Serial.println("(i)mmediate send.");
@@ -102,6 +106,13 @@ void loop(){
 			interactive_listen();
 			break;
 		
+		case 'p':
+			set_power();
+			break;
+		
+		case 'v':
+			settings();
+			break;
 		default:
 			break;
 	}
@@ -169,7 +180,52 @@ void set_frequency(){
 	Serial.println(FREQ,3);
 }
 
+void set_power(){
+	while(Serial.available()>0){ Serial.read();} // Flush the input buffer
+	Serial.println("Valid levels are 1,2,5,8,11,14,17,20 dBm:");
+	while(Serial.available()<2){}
+	int input = Serial.parseInt();
+	
+	switch (input){
+		case 1:
+			rf22.setTxPower(RF22_TXPOW_1DBM);
+			break;
+		case 2:
+			rf22.setTxPower(RF22_TXPOW_2DBM);
+			break;
+		case 5:
+			rf22.setTxPower(RF22_TXPOW_5DBM);
+			break;
+		case 8:
+			rf22.setTxPower(RF22_TXPOW_8DBM);
+			break;
+		case 11:
+			rf22.setTxPower(RF22_TXPOW_11DBM);
+			break;
+		case 14:
+			rf22.setTxPower(RF22_TXPOW_14DBM);
+			break;
+		case 17:
+			rf22.setTxPower(RF22_TXPOW_17DBM);
+			break;
+		case 20:
+			rf22.setTxPower(RF22_TXPOW_20DBM);
+			break;
+		default:
+			Serial.println("Invalid value.");
+			return;
+	}
+	current_power = input;
+	Serial.print("New power level: ");
+	Serial.println(input,DEC);
 
+}
+
+void settings(){
+	Serial.print("Frequency: "); Serial.println(FREQ,4);
+	Serial.print("Power: "); Serial.println(current_power);
+	Serial.print("Message: "); Serial.println(relaymessage);
+}
 void interactive_listen(){
 
 	uint8_t buf[RF22_MAX_MESSAGE_LEN];
@@ -179,13 +235,21 @@ void interactive_listen(){
 	Serial.println("[ and ] to tune down and up, s to send preset packet, q to quit.");
 	while(1){
 		int rssi_floor = ((int)rf22.rssiRead()*51 - 12400)/100;
-		Serial.print(FREQ,3); Serial.print(" "); Serial.println(rssi_floor);
+		Serial.print(FREQ,4); Serial.print(" "); Serial.print(rssi_floor); Serial.print("dBm - ");
+		int numstars = (120+rssi_floor)/3;
+		for(int i = 0; i<numstars; i++){
+			Serial.print("*");
+		}
+		Serial.println("");
+		
+		
 		if(rf22.waitAvailableTimeout(LISTEN_TIME)){
 		// Heard a packet!
 			if(rf22.recv(buf, &len)){
 				int last_rssi = ((int)rf22.lastRssi()*51 - 12400)/100;
 				Serial.print("Got Packet with RSSI "); Serial.print(last_rssi); Serial.print("dBm: ");
 				Serial.write(buf,len); Serial.println("");
+				delay(500);
 			}
 		}
 	
@@ -198,6 +262,15 @@ void interactive_listen(){
 				
 				case ']':
 					FREQ = FREQ + 0.001;
+					rf22.setFrequency(FREQ);
+					break;
+				
+				case';':
+					FREQ = FREQ - 0.0005;
+					rf22.setFrequency(FREQ);
+					break;
+				case '\'':
+					FREQ = FREQ + 0.0005;
 					rf22.setFrequency(FREQ);
 					break;
 					
