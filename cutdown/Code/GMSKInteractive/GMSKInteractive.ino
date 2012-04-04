@@ -44,7 +44,7 @@ void setup(){
 	digitalWrite(STATUS_LED, LOW);
 	digitalWrite(WIRE_FET, LOW);
 	digitalWrite(VALVE_FET, LOW);
-	Serial.begin(115200);
+	Serial.begin(9600);
 	Serial.println("Booting...");
 	
 	// Attempt to start the radio. If fail, blink.
@@ -248,6 +248,7 @@ void interactive_listen(){
 			if(rf22.recv(buf, &len)){
 				int last_rssi = ((int)rf22.lastRssi()*51 - 12400)/100;
 				Serial.print("Got Packet with RSSI "); Serial.print(last_rssi); Serial.print("dBm: ");
+				Serial.println(len, DEC);
 				Serial.write(buf,len); Serial.println("");
 				delay(500);
 			}

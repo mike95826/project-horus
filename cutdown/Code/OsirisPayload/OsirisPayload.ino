@@ -151,14 +151,17 @@ void loop(){
 				}
 		
 				// We don't want the command numbers transmitter down, just send the text back
-				for (int lc = 3; lc < 40; lc += 1){
+				for (int lc = 3; lc < len; lc += 1){
               		relaymessage[lc-3]=char(buf[lc]);  
+
             	}
+            	relaymessage[len-3] = 0;
             }else{
             	// We don't know what this command is, just send the entire thing back.
-            	for (int lc = 0; lc < 40; lc += 1){
-              		relaymessage[lc]=char(buf[lc]);  
+            	for (int lc = 0; lc < len; lc += 1){
+              		relaymessage[lc]=char(buf[lc]);
             	}
+            	relaymessage[len] = 0;
             }
         }
 	}
