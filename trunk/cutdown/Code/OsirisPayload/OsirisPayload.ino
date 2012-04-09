@@ -15,6 +15,9 @@
 #include <util/crc16.h>
 #include <avr/wdt.h>
 
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
 #define PWR_LED	A2
 #define	STATUS_LED	A3
 #define	ONEWIRE	3
@@ -33,18 +36,31 @@
 #define MORSE_MODE 1
 uint8_t TX_MODE = RTTY_MODE;
 
+// Temp sensor definitions
+uint8_t external[] = {0x28,0x53,0x9A,0x49,0x03,0x00,0x00,0xF4}; // Sensor #2
+
 // Singleton instance of the RFM22B Library 
 RF22 rf22;
 
 // Variables & Buffers
 char txbuffer [128];
 int	rfm_temp;
+int8_t ext_temp;
 int rssi_floor = 0;
 int last_rssi = 0;
 char relaymessage[40] = "No uplink received yet";
 int batt_mv = 0;
 unsigned int count = 0;
 unsigned int rx_count = 0;
+
+// Setup a oneWire instance to communicate with any OneWire devices (not just Maxim/Dallas temperature ICs)
+OneWire oneWire(ONEWIRE);
+
+// Pass our oneWire reference to Dallas Temperature. 
+DallasTemperature sensors(&oneWire);
+
+// arrays to hold device addresses
+DeviceAddress insideThermometer, outsideThermometer;
 
 void setup(){
 	// Setup out IO pins
@@ -67,12 +83,27 @@ void setup(){
   	
   	wdt_enable(WDTO_8S);
   	
-	morse_vk5qi();
+  	 sensors.begin();
+  	 sensors.requestTemperatures();
+  
+//  int num_devices = sensors.getDeviceCount();
+  	
+// 	sprintf(txbuffer,"Found %d sensors.\n",num_devices);
+//	rtty_txstring(txbuffer);
+  
+//   if (!sensors.getAddress(insideThermometer, 0)) rtty_txstring("Unable to find address for Device 0\n"); 
+//  if (!sensors.getAddress(outsideThermometer, 1)) rtty_txstring("Unable to find address for Device 1\n"); 
+	morse_ident();
+
+//	RFM22B_RTTY_Mode();
+//	delay(100);
+//	print_temp_addr();
 }
 
 void loop(){
 	wdt_reset();
-	count++;
+	
+	if(count % 30 == 0) morse_ident();
 	
 	if(TX_MODE == RTTY_MODE){
 		RFM22B_RTTY_Mode();
@@ -81,14 +112,19 @@ void loop(){
 		rfm_temp = (rf22.temperatureRead( RF22_TSRANGE_M64_64C,0 ) / 2) - 64;
 		batt_mv = analogRead(BATT) * 12;
 		
-		sprintf(txbuffer, "$$OSIRIS,VK5QI,%d,%d,%d,%d,%d,%s", count,rfm_temp,batt_mv,rssi_floor,last_rssi,relaymessage);
+		int _extTemp = sensors.getTempC(external);
+    	if (_extTemp!=85 && _extTemp!=127 && _extTemp!=-127 && _extTemp!=999) {
+        	ext_temp = (int8_t)_extTemp;
+    	}
+		
+		sprintf(txbuffer, "$$OSIRIS,%d,%d,%d,%d,%d,%d,%s", count,rfm_temp,ext_temp,batt_mv,rssi_floor,last_rssi,relaymessage);
 		sprintf(txbuffer, "%s*%04X\n", txbuffer, gps_CRC16_checksum(txbuffer));
 		digitalWrite(STATUS_LED, LOW);
 		wdt_reset();
 		rtty_txstring(txbuffer);
 		delay(100);
 	}else if(TX_MODE == MORSE_MODE){
-		morse_vk5qi();
+		morse_ident();
 	}
 	
 	RFM22B_RX_Mode();
@@ -165,6 +201,9 @@ void loop(){
             }
         }
 	}
+	
+	sensors.requestTemperatures();
+	count++;
 }
 
 void alert_sound(int loops){
@@ -227,7 +266,7 @@ void fire_wire_fet(int seconds){
 int morse_speed = 20;
 
 // Hardcoding this in saves RAM. 
-void morse_vk5qi(){
+void morse_ident(){
 	rf22.setFrequency(TX_FREQ);
 	rf22.setModeRx();
 	rf22.setModemConfig(RF22::UnmodulatedCarrier);
@@ -236,8 +275,12 @@ void morse_vk5qi(){
 	dit();dit();dit();dah(); morse_delay(3); // V
 	dah();dit();dah(); morse_delay(3); //K
 	dit();dit();dit();dit();dit(); morse_delay(3); //5
-	dah();dah();dit();dah(); morse_delay(3); //Q
-	dit();dit(); morse_delay(3);
+//	dah();dah();dit();dah(); morse_delay(3); //Q
+//	dit();dit(); morse_delay(3); //I
+	
+	dit();dah();morse_delay(3);//A
+	dit();dah();dit();morse_delay(3);//R
+	dah();dah();dit();morse_delay(3);//G
 }
 
 void morse_delay(int num){
@@ -258,4 +301,35 @@ void dah(){
 	morse_delay(3);
 	rf22.setModeRx();
 	morse_delay(1);
+}
+
+
+// Temp sensor stuff
+
+
+void printAddress(DeviceAddress deviceAddress)
+{
+  for (uint8_t i = 0; i < 8; i++)
+  {
+    // zero pad the address if necessary
+    char temp[5];
+    unsigned int tempbyte = 0;
+    tempbyte = deviceAddress[i];
+    
+    rtty_txstring("0x");
+    if (deviceAddress[i] < 16) rtty_txstring("0");
+    sprintf(temp, "%X", tempbyte);
+    rtty_txstring(temp);
+    if (i<7) rtty_txstring(",");
+  }
+}
+
+void print_temp_addr(){
+    rtty_txstring("Sensor 0: {");
+  printAddress(insideThermometer);
+  rtty_txstring("}\n");
+  
+    rtty_txstring("Sensor 1: {");
+  printAddress(outsideThermometer);
+  rtty_txstring("}\n");
 }
